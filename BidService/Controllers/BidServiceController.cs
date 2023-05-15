@@ -1,11 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
 using System.Security.Claims;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
 
 namespace BidService.Controllers;
 
