@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using MongoDB.Driver;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BidService.Controllers
 {
