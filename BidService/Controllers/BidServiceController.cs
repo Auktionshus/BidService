@@ -17,7 +17,6 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace BidService.Controllers
 {
-    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class BidController : ControllerBase
@@ -30,7 +29,6 @@ namespace BidService.Controllers
 
         public BidController(ILogger<BidController> logger, IConfiguration config)
         {
-
             _mongoDbConnectionString = config["MongoDbConnectionString"];
             _hostName = config["HostnameRabbit"];
             _secret = config["Secret"];
@@ -39,7 +37,6 @@ namespace BidService.Controllers
             _logger = logger;
             _logger.LogInformation($"Connection: {_hostName}");
         }
-
 
         // Placeholder for the auction data storage
         private static readonly List<Auction> Auctions = new List<Auction>();
@@ -60,6 +57,7 @@ namespace BidService.Controllers
             return Ok(auction);
         }
 
+        [Authorize]
         [HttpPost("{id}/placeBid")]
         public async Task<IActionResult> PlaceBid(Guid id, [FromBody] Bid bid)
         {
@@ -103,6 +101,5 @@ namespace BidService.Controllers
 
             return CreatedAtAction(nameof(GetAuction), new { id = id }, auction);
         }
-
     }
 }
