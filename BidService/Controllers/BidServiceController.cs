@@ -58,6 +58,13 @@ namespace BidService.Controllers
         }
 
         [Authorize]
+        [HttpGet]
+        public async Task<IActionResult> Get()
+        {
+            return Ok("You're authorized");
+        }
+
+        [Authorize]
         [HttpPost("{id}/placeBid")]
         public async Task<IActionResult> PlaceBid(Guid id, [FromBody] Bid bid)
         {
