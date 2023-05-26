@@ -11,22 +11,35 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using MongoDB.Driver;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BidService.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class BidController : ControllerBase
     {
         private readonly ILogger<BidController> _logger;
         private readonly string _hostName;
+        private readonly string _secret;
+        private readonly string _issuer;
+        private readonly string _mongoDbConnectionString;
 
         public BidController(ILogger<BidController> logger, IConfiguration config)
         {
-            _logger = logger;
+
+            _mongoDbConnectionString = config["MongoDbConnectionString"];
             _hostName = config["HostnameRabbit"];
+            _secret = config["Secret"];
+            _issuer = config["Issuer"];
+
+            _logger = logger;
             _logger.LogInformation($"Connection: {_hostName}");
         }
+
 
         // Placeholder for the auction data storage
         private static readonly List<Auction> Auctions = new List<Auction>();

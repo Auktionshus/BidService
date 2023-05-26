@@ -1,19 +1,40 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using NLog;
 using NLog.Web;
+using System.Text;
 
 var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 logger.Debug("init main");
 
 try
 {
-    var secret = Environment.GetEnvironmentVariable("Secret");
-    var issuer = Environment.GetEnvironmentVariable("Issuer");
-
     var builder = WebApplication.CreateBuilder(args);
 
     // Add services to the container.
-
     builder.Services.AddControllers();
+
+    var configuration = builder.Configuration;
+    var secret = configuration["Secret"];
+    var issuer = configuration["Issuer"];
+
+    logger.Debug($"Secret: {secret}");
+    logger.Debug($"Issuer: {issuer}");
+
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = false,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = issuer,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret))
+            };
+        });
+
     // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
@@ -29,6 +50,7 @@ try
 
     app.UseHttpsRedirection();
 
+    app.UseAuthentication(); // Tilføj denne linje for at sikre at middleware kører
     app.UseAuthorization();
 
     app.MapControllers();
@@ -37,7 +59,7 @@ try
 }
 catch (Exception ex)
 {
-    logger.Error(ex, "Stopped program becouse of exception");
+    logger.Error(ex, "Stopped program because of exception");
     throw;
 }
 finally
