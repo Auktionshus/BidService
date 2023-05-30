@@ -31,7 +31,7 @@ namespace BidService.Controllers
         // Placeholder for the auction data storage
         private static readonly List<Auction> Auctions = new List<Auction>();
 
-        [HttpGet("{id}")]
+        [HttpGet("bid/{id}")]
         public async Task<IActionResult> GetAuction(Guid id)
         {
             MongoClient dbClient = new MongoClient(
@@ -106,6 +106,7 @@ namespace BidService.Controllers
             var assembly = typeof(Program).Assembly;
             foreach (var attribute in assembly.GetCustomAttributesData())
             {
+                _logger.LogInformation("Tilføjer " + attribute.AttributeType.Name);
                 properties.Add($"{attribute.AttributeType.Name} - {attribute.ToString()}");
             }
             return properties;
