@@ -1,26 +1,9 @@
-using System;
-using System.IO;
 using System.Text;
-using System.Linq;
-using System.Net.Http;
 using System.Text.Json;
-using System.Security.Claims;
-using System.Threading.Tasks;
-using System.Net.Http.Headers;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Configuration;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Newtonsoft.Json;
 using MongoDB.Driver;
 using RabbitMQ.Client;
-using RabbitMQ.Client.Events;
 
 namespace BidService.Controllers
 {
