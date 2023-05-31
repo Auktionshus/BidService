@@ -55,48 +55,58 @@ namespace BidService.Controllers
         }
 
         [Authorize]
-        [HttpPost("{id}/placeBid")]
-        public async Task<IActionResult> PlaceBid(Guid id, [FromBody] Bid bid)
+        [HttpPost("placeBid")]
+        public async Task<IActionResult> PlaceBid([FromBody] BidDTO bid)
         {
-            MongoClient dbClient = new MongoClient(
-                "mongodb+srv://GroenOlsen:BhvQmiihJWiurl2V@auktionshusgo.yzctdhc.mongodb.net/?retryWrites=true&w=majority"
-            );
-            var collection = dbClient.GetDatabase("auction").GetCollection<Auction>("auctions");
-            var bidCollection = dbClient.GetDatabase("Bid").GetCollection<Bid>("Bids");
-
-            Auction auction = await collection.Find(a => a.Id == id).FirstOrDefaultAsync();
-
-            if (auction == null)
+            try
             {
-                return NotFound($"Auction with Id {id} not found.");
-            }
+                _logger.LogInformation($"Bid received for auction with id: {bid.Auction}");
+                if (bid != null)
+                {
+                    _logger.LogInformation("Place bid called");
+                    try
+                    {
+                        // Connects to RabbitMQ
+                        var factory = new ConnectionFactory { HostName = _hostName };
 
-            if (auction.BidHistory == null)
+                        using var connection = factory.CreateConnection();
+                        using var channel = connection.CreateModel();
+
+                        channel.ExchangeDeclare(exchange: "topic_fleet", type: ExchangeType.Topic);
+
+                        // Serialize to JSON
+                        string message = JsonSerializer.Serialize(bid);
+
+                        // Convert to byte-array
+                        var body = Encoding.UTF8.GetBytes(message);
+
+                        // Send to queue
+                        channel.BasicPublish(
+                            exchange: "topic_fleet",
+                            routingKey: "bids.create",
+                            basicProperties: null,
+                            body: body
+                        );
+
+                        _logger.LogInformation("Bid placed and sent to RabbitMQ");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogInformation("error " + ex.Message);
+                        return StatusCode(500);
+                    }
+                    return Ok(bid);
+                }
+                else
+                {
+                    return BadRequest("Bid object is null");
+                }
+            }
+            catch
             {
-                auction.BidHistory = new List<Bid>();
+                _logger.LogInformation("An error occurred while trying to create item");
+                return BadRequest();
             }
-
-            if (bid.Amount <= auction.CurrentPrice)
-            {
-                return BadRequest(
-                    $"Bid amount must be higher than {auction.CurrentPrice} the current price."
-                );
-            }
-
-            bid.Id = Guid.NewGuid();
-            bid.Date = DateTime.UtcNow;
-            auction.BidHistory.Add(bid);
-            auction.CurrentPrice = bid.Amount;
-
-            var update = Builders<Auction>.Update
-                .Set(a => a.CurrentPrice, bid.Amount)
-                .Push(a => a.BidHistory, bid);
-
-            await collection.UpdateOneAsync(a => a.Id == id, update);
-
-            await bidCollection.InsertOneAsync(bid);
-
-            return CreatedAtAction(nameof(GetAuction), new { id = id }, auction);
         }
 
         [HttpGet("version")]
@@ -110,7 +120,6 @@ namespace BidService.Controllers
                 properties.Add($"{attribute.AttributeType.Name} - {attribute.ToString()}");
             }
             return properties;
-
         }
     }
 }
