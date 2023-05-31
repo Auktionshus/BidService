@@ -55,7 +55,7 @@ namespace BidService.Controllers
         }
 
         [HttpPost("{id}/placeBid")]
-        public async Task<IActionResult> PlaceBid(Guid id, [FromBody] Bid bid)
+        public async Task<IActionResult> PlaceBid([FromBody] BidDTO bid)
         {
             try
             {
