@@ -31,7 +31,7 @@ namespace BidService.Controllers
         // Placeholder for the auction data storage
         private static readonly List<Auction> Auctions = new List<Auction>();
 
-        [HttpGet("{id}")]
+        [HttpGet("bid/{id}")]
         public async Task<IActionResult> GetAuction(Guid id)
         {
             MongoClient dbClient = new MongoClient(
@@ -49,7 +49,7 @@ namespace BidService.Controllers
 
         [Authorize]
         [HttpGet]
-        public async Task<IActionResult> Get()
+        public async Task<IActionResult> GetAuth()
         {
             return Ok("You're authorized");
         }
@@ -147,6 +147,20 @@ namespace BidService.Controllers
             await bidCollection.InsertOneAsync(bid);
 
             return CreatedAtAction(nameof(GetAuction), new { id = id }, auction);
+        }
+
+        [HttpGet("version")]
+        public IEnumerable<string> Get()
+        {
+            var properties = new List<string>();
+            var assembly = typeof(Program).Assembly;
+            foreach (var attribute in assembly.GetCustomAttributesData())
+            {
+                _logger.LogInformation("Tilføjer " + attribute.AttributeType.Name);
+                properties.Add($"{attribute.AttributeType.Name} - {attribute.ToString()}");
+            }
+            return properties;
+
         }
     }
 }
