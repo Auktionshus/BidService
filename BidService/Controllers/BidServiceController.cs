@@ -55,12 +55,12 @@ namespace BidService.Controllers
         }
 
         [Authorize]
-        [HttpPost("{id}/placeBid")]
-        public async Task<IActionResult> PlaceBid(Guid id, [FromBody] Bid bid)
+        [HttpPost("placeBid")]
+        public async Task<IActionResult> PlaceBid([FromBody] BidDTO bid)
         {
             try
             {
-                _logger.LogInformation($"Bid received for auction with id: {id}");
+                _logger.LogInformation($"Bid received for auction with id: {bid.Auction}");
                 if (bid != null)
                 {
                     _logger.LogInformation("Place bid called");
@@ -107,46 +107,6 @@ namespace BidService.Controllers
                 _logger.LogInformation("An error occurred while trying to create item");
                 return BadRequest();
             }
-
-            MongoClient dbClient = new MongoClient(
-                "mongodb+srv://GroenOlsen:BhvQmiihJWiurl2V@auktionshusgo.yzctdhc.mongodb.net/?retryWrites=true&w=majority"
-            );
-            var collection = dbClient.GetDatabase("auction").GetCollection<Auction>("auctions");
-            var bidCollection = dbClient.GetDatabase("Bid").GetCollection<Bid>("Bids");
-
-            Auction auction = await collection.Find(a => a.Id == id).FirstOrDefaultAsync();
-
-            if (auction == null)
-            {
-                return NotFound($"Auction with Id {id} not found.");
-            }
-
-            if (auction.BidHistory == null)
-            {
-                auction.BidHistory = new List<Bid>();
-            }
-
-            if (bid.Amount <= auction.CurrentPrice)
-            {
-                return BadRequest(
-                    $"Bid amount must be higher than {auction.CurrentPrice} the current price."
-                );
-            }
-
-            bid.Id = Guid.NewGuid();
-            bid.Date = DateTime.UtcNow;
-            auction.BidHistory.Add(bid);
-            auction.CurrentPrice = bid.Amount;
-
-            var update = Builders<Auction>.Update
-                .Set(a => a.CurrentPrice, bid.Amount)
-                .Push(a => a.BidHistory, bid);
-
-            await collection.UpdateOneAsync(a => a.Id == id, update);
-
-            await bidCollection.InsertOneAsync(bid);
-
-            return CreatedAtAction(nameof(GetAuction), new { id = id }, auction);
         }
 
         [HttpGet("version")]
@@ -160,7 +120,6 @@ namespace BidService.Controllers
                 properties.Add($"{attribute.AttributeType.Name} - {attribute.ToString()}");
             }
             return properties;
-
         }
     }
 }
