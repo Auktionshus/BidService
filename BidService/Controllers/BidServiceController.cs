@@ -58,6 +58,56 @@ namespace BidService.Controllers
         [HttpPost("{id}/placeBid")]
         public async Task<IActionResult> PlaceBid(Guid id, [FromBody] Bid bid)
         {
+            try
+            {
+                _logger.LogInformation($"Bid received for auction with id: {id}");
+                if (bid != null)
+                {
+                    _logger.LogInformation("Place bid called");
+                    try
+                    {
+                        // Connects to RabbitMQ
+                        var factory = new ConnectionFactory { HostName = _hostName };
+
+                        using var connection = factory.CreateConnection();
+                        using var channel = connection.CreateModel();
+
+                        channel.ExchangeDeclare(exchange: "topic_fleet", type: ExchangeType.Topic);
+
+                        // Serialize to JSON
+                        string message = JsonSerializer.Serialize(bid);
+
+                        // Convert to byte-array
+                        var body = Encoding.UTF8.GetBytes(message);
+
+                        // Send to queue
+                        channel.BasicPublish(
+                            exchange: "topic_fleet",
+                            routingKey: "bids.create",
+                            basicProperties: null,
+                            body: body
+                        );
+
+                        _logger.LogInformation("Bid placed and sent to RabbitMQ");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogInformation("error " + ex.Message);
+                        return StatusCode(500);
+                    }
+                    return Ok(bid);
+                }
+                else
+                {
+                    return BadRequest("Bid object is null");
+                }
+            }
+            catch
+            {
+                _logger.LogInformation("An error occurred while trying to create item");
+                return BadRequest();
+            }
+
             MongoClient dbClient = new MongoClient(
                 "mongodb+srv://GroenOlsen:BhvQmiihJWiurl2V@auktionshusgo.yzctdhc.mongodb.net/?retryWrites=true&w=majority"
             );
