@@ -1,26 +1,9 @@
-using System;
-using System.IO;
 using System.Text;
-using System.Linq;
-using System.Net.Http;
 using System.Text.Json;
-using System.Security.Claims;
-using System.Threading.Tasks;
-using System.Net.Http.Headers;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Configuration;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Newtonsoft.Json;
 using MongoDB.Driver;
 using RabbitMQ.Client;
-using RabbitMQ.Client.Events;
 
 namespace BidService.Controllers
 {
@@ -48,7 +31,7 @@ namespace BidService.Controllers
         // Placeholder for the auction data storage
         private static readonly List<Auction> Auctions = new List<Auction>();
 
-        [HttpGet("{id}")]
+        [HttpGet("bid/{id}")]
         public async Task<IActionResult> GetAuction(Guid id)
         {
             MongoClient dbClient = new MongoClient(
@@ -66,7 +49,7 @@ namespace BidService.Controllers
 
         [Authorize]
         [HttpGet]
-        public async Task<IActionResult> Get()
+        public async Task<IActionResult> GetAuth()
         {
             return Ok("You're authorized");
         }
@@ -74,45 +57,68 @@ namespace BidService.Controllers
         [HttpPost("{id}/placeBid")]
         public async Task<IActionResult> PlaceBid(Guid id, [FromBody] Bid bid)
         {
-            MongoClient dbClient = new MongoClient(
-                "mongodb+srv://GroenOlsen:BhvQmiihJWiurl2V@auktionshusgo.yzctdhc.mongodb.net/?retryWrites=true&w=majority"
-            );
-            var collection = dbClient.GetDatabase("auction").GetCollection<Auction>("auctions");
-            var bidCollection = dbClient.GetDatabase("Bid").GetCollection<Bid>("Bids");
-
-            Auction auction = await collection.Find(a => a.Id == id).FirstOrDefaultAsync();
-
-            if (auction == null)
+            try
             {
-                return NotFound($"Auction with Id {id} not found.");
-            }
+                _logger.LogInformation($"Bid received for auction with id: {bid.Auction}");
+                if (bid != null)
+                {
+                    _logger.LogInformation("Place bid called");
+                    try
+                    {
+                        // Connects to RabbitMQ
+                        var factory = new ConnectionFactory { HostName = _hostName };
 
-            if (auction.BidHistory == null)
+                        using var connection = factory.CreateConnection();
+                        using var channel = connection.CreateModel();
+
+                        channel.ExchangeDeclare(exchange: "topic_fleet", type: ExchangeType.Topic);
+
+                        // Serialize to JSON
+                        string message = JsonSerializer.Serialize(bid);
+
+                        // Convert to byte-array
+                        var body = Encoding.UTF8.GetBytes(message);
+
+                        // Send to queue
+                        channel.BasicPublish(
+                            exchange: "topic_fleet",
+                            routingKey: "bids.create",
+                            basicProperties: null,
+                            body: body
+                        );
+
+                        _logger.LogInformation("Bid placed and sent to RabbitMQ");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogInformation("error " + ex.Message);
+                        return StatusCode(500);
+                    }
+                    return Ok(bid);
+                }
+                else
+                {
+                    return BadRequest("Bid object is null");
+                }
+            }
+            catch
             {
-                auction.BidHistory = new List<Bid>();
+                _logger.LogInformation("An error occurred while trying to create item");
+                return BadRequest();
             }
+        }
 
-            if (bid.Amount <= auction.CurrentPrice)
+        [HttpGet("version")]
+        public IEnumerable<string> Get()
+        {
+            var properties = new List<string>();
+            var assembly = typeof(Program).Assembly;
+            foreach (var attribute in assembly.GetCustomAttributesData())
             {
-                return BadRequest(
-                    $"Bid amount must be higher than {auction.CurrentPrice} the current price."
-                );
+                _logger.LogInformation("Tilføjer " + attribute.AttributeType.Name);
+                properties.Add($"{attribute.AttributeType.Name} - {attribute.ToString()}");
             }
-
-            bid.Id = Guid.NewGuid();
-            bid.Date = DateTime.UtcNow;
-            auction.BidHistory.Add(bid);
-            auction.CurrentPrice = bid.Amount;
-
-            var update = Builders<Auction>.Update
-                .Set(a => a.CurrentPrice, bid.Amount)
-                .Push(a => a.BidHistory, bid);
-
-            await collection.UpdateOneAsync(a => a.Id == id, update);
-
-            await bidCollection.InsertOneAsync(bid);
-
-            return CreatedAtAction(nameof(GetAuction), new { id = id }, auction);
+            return properties;
         }
     }
 }
