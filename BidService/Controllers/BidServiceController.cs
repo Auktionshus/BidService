@@ -21,10 +21,15 @@ namespace BidService.Controllers
         private readonly string _issuer;
         private readonly string _mongoDbConnectionString;
 
-        public BidController(ILogger<BidController> logger, Environment secrets)
+        public BidController(
+            ILogger<BidController> logger,
+            Environment secrets,
+            IConfiguration config
+        )
         {
             try
             {
+                _hostName = config["HostnameRabbit"];
                 _secret = secrets.dictionary["Secret"];
                 _issuer = secrets.dictionary["Issuer"];
                 _mongoDbConnectionString = secrets.dictionary["ConnectionString"];
