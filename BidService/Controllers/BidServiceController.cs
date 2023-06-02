@@ -21,6 +21,8 @@ namespace BidService.Controllers
         private readonly string _issuer;
         private readonly string _mongoDbConnectionString;
 
+        private MongoClient dbClient;
+
         public BidController(
             ILogger<BidController> logger,
             Environment secrets,
@@ -38,6 +40,9 @@ namespace BidService.Controllers
                 _logger.LogInformation($"Secret: {_secret}");
                 _logger.LogInformation($"Issuer: {_issuer}");
                 _logger.LogInformation($"MongoDbConnectionString: {_mongoDbConnectionString}");
+
+                // Connect to MongoDB
+                dbClient = new MongoClient(_mongoDbConnectionString);
             }
             catch (Exception e)
             {
@@ -45,42 +50,85 @@ namespace BidService.Controllers
             }
         }
 
-        // Placeholder for the auction data storage
-        private static readonly List<Auction> Auctions = new List<Auction>();
-
-        [HttpGet("bid/{id}")]
-        public async Task<IActionResult> GetAuction(Guid id)
+        /// <summary>
+        /// Gets bid from id
+        /// </summary>
+        /// <param name="id">The id of the bid</param>
+        /// <returns>A bid</returns>
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetBid(Guid id)
         {
-            MongoClient dbClient = new MongoClient(
-                "mongodb+srv://GroenOlsen:BhvQmiihJWiurl2V@auktionshusgo.yzctdhc.mongodb.net/?retryWrites=true&w=majority"
-            );
-            var collection = dbClient.GetDatabase("auction").GetCollection<Auction>("auctions");
-            Auction auction = await collection.Find(a => a.Id == id).FirstOrDefaultAsync();
-
-            if (auction == null)
+            try
             {
-                return NotFound($"Auction with Id {id} not found.");
+                var collection = dbClient.GetDatabase("Bid").GetCollection<Bid>("Bids");
+                Bid bid = await collection.Find(a => a.Id == id).FirstOrDefaultAsync();
+
+                if (bid == null)
+                {
+                    return NotFound($"Bid with Id: {id} not found.");
+                }
+                return Ok(bid);
             }
-            return Ok(auction);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return StatusCode(500);
+            }
         }
 
-        [Authorize]
-        [HttpGet]
-        public async Task<IActionResult> GetAuth()
-        {
-            return Ok("You're authorized");
-        }
-
+        /// <summary>
+        /// Creates a bid
+        /// </summary>
+        /// <param name="bid">BidDTO</param>
+        /// <returns>The created bid</returns>
         [Authorize]
         [HttpPost("{id}/placeBid")]
         public async Task<IActionResult> PlaceBid([FromBody] BidDTO bid)
         {
-            try
+            _logger.LogInformation(
+                $"Bid received for auction with id: {bid.Auction}, from user: {bid.Bidder} for {bid.Amount}"
+            );
+            if (bid != null)
             {
-                _logger.LogInformation($"Bid received for auction with id: {bid.Auction}");
-                if (bid != null)
+                // Check if Auction exists
+                Auction auction = null;
+                try
                 {
-                    _logger.LogInformation("Place bid called");
+                    var auctionCollection = dbClient
+                        .GetDatabase("auction")
+                        .GetCollection<Auction>("auctions");
+                    auction = auctionCollection.Find(a => a.Id == bid.Auction).FirstOrDefault();
+                    _logger.LogInformation($" [x] Received auction with id: {bid.Auction}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        $"An error occurred while querying the auction collection: {ex}"
+                    );
+                }
+                // Check if user exists
+                User user = null;
+                try
+                {
+                    var userCollection = dbClient.GetDatabase("User").GetCollection<User>("Users");
+                    user = userCollection.Find(u => u.Id == bid.Bidder).FirstOrDefault();
+                    _logger.LogInformation($" [x] Received user with id: {user.Id}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"An error occurred while querying the user collection: {ex}");
+                }
+                if (user == null)
+                {
+                    _logger.LogInformation("User not found");
+                    return BadRequest("User not found");
+                }
+                else if (auction == null)
+                {
+                    return NotFound($"Auction with Id {bid.Auction} not found.");
+                }
+                else
+                {
                     try
                     {
                         // Connects to RabbitMQ
@@ -114,18 +162,17 @@ namespace BidService.Controllers
                     }
                     return Ok(bid);
                 }
-                else
-                {
-                    return BadRequest("Bid object is null");
-                }
             }
-            catch
+            else
             {
-                _logger.LogInformation("An error occurred while trying to create item");
-                return BadRequest();
+                return BadRequest("Bid object is null");
             }
         }
 
+        /// <summary>
+        /// Gets the version information of the service
+        /// </summary>
+        /// <returns>A list of version information</returns>
         [HttpGet("version")]
         public IEnumerable<string> Get()
         {
