@@ -82,7 +82,7 @@ namespace BidService.Controllers
         /// <param name="bid">BidDTO</param>
         /// <returns>The created bid</returns>
         [Authorize]
-        [HttpPost("{id}/placeBid")]
+        [HttpPost("create")]
         public async Task<IActionResult> PlaceBid([FromBody] BidDTO bid)
         {
             _logger.LogInformation(
