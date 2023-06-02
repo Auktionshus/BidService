@@ -39,15 +39,15 @@ namespace BidService.Test
 
             // Vi opretter en ny instans af BidController, som vi vil teste, ved at give den vores Mock objekter.
             var controller = new BidController(_loggerMock.Object, _environmentMock.Object, _configurationMock.Object);
-            
+
 
 
 
             // Vi opretter en ny BidDTO, som vi vil bruge til at kalde PlaceBid metoden.
             var bid = new BidDTO
             {
-                Auction = "37a12495-f85c-4b44-8f45-25015d2b6562",
-                Bidder = "3af9ef43-3906-4d2a-b608-a9c04c16e398",
+                Auction = Guid.NewGuid(),
+                Bidder = Guid.NewGuid(),
                 Amount = 200
             };
 
