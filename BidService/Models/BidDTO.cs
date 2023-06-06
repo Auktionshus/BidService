@@ -2,10 +2,9 @@ using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Collections.Generic;
 
-public class Bid
+public class BidDTO
 {
-    public Guid Id { get; set; }
-    public string Bidder { get; set; }
     public decimal Amount { get; set; }
-    public DateTime Date { get; set; }
+    public Guid Bidder { get; set; }
+    public Guid Auction { get; set; }
 }
